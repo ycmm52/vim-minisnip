@@ -5,6 +5,14 @@
     |_| |_| |_|_|_| |_|_|___/_| |_|_| .__/
                                     |_|
 
+# Differences & Disclaimer
+
+- files are placed in filetype folders, inspired by <a href="https://github.com/Jorengarenar/miniSnip" target="_blank">Jorengarenar/miniSnip</a>
+- snippets would honor indentation now
+- forked from <a href="https://github.com/tckmn/vim-minisnip" target="_blank">tckmin/vim-minisnip</a> rather than <a href="https://github.com/Jorengarenar/miniSnip" target="_blank">Jorengarenar/miniSnip</a> for Vim7 backward compatible
+- Feel free to use the script but since it's intended for personal use, anything can break at any time.
+
+# Original
 Minisnip is a tiny plugin that allows you to quickly insert "templates" into
 files. Among all the other snippet plugins out there, the primary goal of
 minisnip is to be as minimal and lightweight as possible.

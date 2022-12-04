@@ -1,21 +1,27 @@
 " set default global variable values if unspecified by user
-let g:minisnip_dir = fnamemodify(get(g:, 'minisnip_dir', '~/.vim/minisnip'), ':p')
-let g:minisnip_trigger = get(g:, 'minisnip_trigger', '<Tab>')
-let g:minisnip_startdelim = get(g:, 'minisnip_startdelim', '{{+')
-let g:minisnip_enddelim = get(g:, 'minisnip_enddelim', '+}}')
-let g:minisnip_evalmarker = get(g:, 'minisnip_evalmarker', '~')
+let g:minisnip_dir           = fnamemodify(get(g:, 'minisnip_dir', '~/.vim/minisnip'), ':p')
+let g:minisnip_trigger       = get(g:, 'minisnip_trigger', '<Tab>')
+let g:minisnip_startdelim    = get(g:, 'minisnip_startdelim', '{{+')
+let g:minisnip_enddelim      = get(g:, 'minisnip_enddelim', '+}}')
+let g:minisnip_evalmarker    = get(g:, 'minisnip_evalmarker', '~')
 let g:minisnip_backrefmarker = get(g:, 'minisnip_backrefmarker', '\\~')
+let g:minisnip_enable        = get(g:, 'minisnip_enable', 1)
 
 " this is the pattern used to find placeholders
 let s:delimpat = '\V' . g:minisnip_startdelim . '\.\{-}' . g:minisnip_enddelim
 
 function! <SID>ShouldTrigger()
     silent! unlet! s:snippetfile
+    if &ft == 'snip' || g:minisnip_enable != 1
+        return 0
+    endif
     let l:cword = matchstr(getline('.'), '\v\w+%' . col('.') . 'c')
+    let s:cword = l:cword
 
-    " look for a snippet by that name
-    let l:snippetfile = g:minisnip_dir . '/' . l:cword
-    let l:ft_snippetfile = g:minisnip_dir . '/_' . &filetype . '_' . l:cword
+    " look for a snippet by filetype and name
+    let l:filename = l:cword . '.' . 'snip'
+    let l:snippetfile = g:minisnip_dir . '/' . l:filename
+    let l:ft_snippetfile = g:minisnip_dir . '/' . &filetype . '/' . l:filename
     if filereadable(l:ft_snippetfile)
         " filetype snippets override general snippets
         let l:snippetfile = l:ft_snippetfile
@@ -36,12 +42,31 @@ function! <SID>Minisnip()
         " reset placeholder text history (for backrefs)
         let s:placeholder_texts = []
         let s:placeholder_text = ''
-        " remove the snippet name
-        normal! "_diw
-        " insert the snippet
-        execute 'keepalt read ' . escape(s:snippetfile, '#%')
-        " remove the empty line before the snippet
-        normal! kJ
+        let s:snippetContent = readfile(expand( s:snippetfile ))
+        if len(s:snippetContent) == 1
+            " remove the snippet name
+            normal! "_diw
+            " insert the snippet
+            execute 'keepalt read ' . escape(s:snippetfile, '#%')
+            " remove the empty line before the snippet
+            normal! kJ
+        " set indentation if snippet line > 1
+        elseif len(s:snippetContent) > 1
+            if matchstr(getline('.'), '\v^\s*\S+.*' . s:cword) != ''
+                echom "No snippet done"
+                return 0
+            endif
+            let s:currentLineNr = line('.')
+            let s:indentation = indent('.')
+            for i in range(0, len(s:snippetContent)-1)
+                let finalLine = repeat(' ', s:indentation) . s:snippetContent[i]
+                if i == 0
+                    call setline(s:currentLineNr, finalLine)
+                else
+                    call append(s:currentLineNr+i-1, finalLine)
+                endif
+            endfor
+        endif
         " select the first placeholder
         call s:SelectPlaceholder()
     else
@@ -107,15 +132,17 @@ endfunction
 " plug mappings
 " the eval/escape charade is to convert ex. <Tab> into a literal tab, first
 " making it \<Tab> and then eval'ing that surrounded by double quotes
-inoremap <script> <expr> <Plug>Minisnip <SID>ShouldTrigger() ?
-            \"x\<bs>\<esc>:call \<SID>Minisnip()\<cr>" :
-            \eval('"' . escape(g:minisnip_trigger, '\"<') . '"')
-snoremap <script> <expr> <Plug>Minisnip <SID>ShouldTrigger() ?
-            \"\<esc>:call \<SID>Minisnip()\<cr>" :
-            \eval('"' . escape(g:minisnip_trigger, '\"<') . '"')
+if g:minisnip_enable == 1
+    inoremap <script> <expr> <Plug>Minisnip <SID>ShouldTrigger() ?
+                \"x\<bs>\<esc>:call \<SID>Minisnip()\<cr>" :
+                \eval('"' . escape(g:minisnip_trigger, '\"<') . '"')
+    snoremap <script> <expr> <Plug>Minisnip <SID>ShouldTrigger() ?
+                \"\<esc>:call \<SID>Minisnip()\<cr>" :
+                \eval('"' . escape(g:minisnip_trigger, '\"<') . '"')
 
-" add the default mappings if the user hasn't defined any
-if !hasmapto('<Plug>Minisnip')
-    execute 'imap <unique> ' . g:minisnip_trigger . ' <Plug>Minisnip'
-    execute 'smap <unique> ' . g:minisnip_trigger . ' <Plug>Minisnip'
+    " add the default mappings if the user hasn't defined any
+    if !hasmapto('<Plug>Minisnip')
+        execute 'imap <unique> ' . g:minisnip_trigger . ' <Plug>Minisnip'
+        execute 'smap <unique> ' . g:minisnip_trigger . ' <Plug>Minisnip'
+    endif
 endif

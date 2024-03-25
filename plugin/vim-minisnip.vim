@@ -16,6 +16,7 @@ function! <SID>ShouldTrigger()
         return 0
     endif
     let l:cword = matchstr(getline('.'), '\v\w+%' . col('.') . 'c')
+    " let l:cword = expand('<cword>')
     let s:cword = l:cword
 
     " look for a snippet by filetype and name
@@ -29,7 +30,7 @@ function! <SID>ShouldTrigger()
 
     " make sure the snippet exists
     if filereadable(l:snippetfile)
-        let s:snippetfile = l:snippetfile
+        let s:snippetfile = expand(l:snippetfile)
         return 1
     endif
 
@@ -43,24 +44,23 @@ function! <SID>Minisnip()
         let s:placeholder_texts = []
         let s:placeholder_text = ''
         let s:snippetContent = readfile(expand( s:snippetfile ))
+        call s:echodebug('cword', s:cword)
         if len(s:snippetContent) == 1
-            " remove the snippet name
-            normal! "_diw
-            " insert the snippet
-            execute 'keepalt read ' . escape(s:snippetfile, '#%')
-            " remove the empty line before the snippet
-            normal! kJ
+            let currentLine = s:GetCurrentLine()
+            let currentCol = s:GetCurrentCol()
+            let line = getline('.')
+            let leadingSpaceNum = indent(currentLine)
+            let newLine = substitute(line, '\<' . s:cword . '\>', s:snippetContent[0], '')
+            call setline(currentLine, newLine)
         " set indentation if snippet line > 1
         elseif len(s:snippetContent) > 1
-            if matchstr(getline('.'), '\v^\s*\S+.*' . s:cword) != ''
-                echom "No snippet done"
-                return 0
-            endif
             let s:currentLineNr = line('.')
             let s:indentation = indent('.')
             for i in range(0, len(s:snippetContent)-1)
                 let finalLine = repeat(' ', s:indentation) . s:snippetContent[i]
                 if i == 0
+                    let line = getline('.')
+                    let finalLine = substitute(line, '\<' . s:cword . '\>', s:snippetContent[i], '')
                     call setline(s:currentLineNr, finalLine)
                 else
                     call append(s:currentLineNr+i-1, finalLine)
@@ -83,7 +83,9 @@ endfunction
 " this is the function that finds and selects the next placeholder
 function! s:SelectPlaceholder()
     " don't clobber s register
-    let l:old_s = @s
+    let l:old_s    = @s
+    let l:old_plus = @p
+    let l:old_star = @t
 
     " get the contents of the placeholder
     " we use /e here in case the cursor is already on it (which occurs ex.
@@ -127,6 +129,31 @@ function! s:SelectPlaceholder()
 
     " restore old value of s register
     let @s = l:old_s
+    let @p = l:old_plus
+    let @t = l:old_star
+endfunction
+
+function! s:GetCurrentLine() abort
+    return getcurpos()[1]
+endfunction
+
+function! s:GetCurrentCol() abort
+    return getcurpos()[2]
+endfunction
+
+function! s:echodebug(msg, ...) abort
+    let file=expand('%')
+    let time=strftime("%T")
+    let date=strftime("%Y%m%d")
+    let msg= " [DEBUG] [" . time . " " . date . "] [" . file . "] DebugMsg: ". a:msg . " = " . s:JoinListElement(a:000)
+    redir >> ~/vimdebug
+    execute ":echo msg"
+    redir END
+endfunction
+
+function! s:JoinListElement(list) abort
+    let nl = map(deepcopy(a:list), 'string(v:val)')
+    return join(nl, ", ")
 endfunction
 
 " plug mappings

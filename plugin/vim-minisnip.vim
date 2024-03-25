@@ -44,7 +44,6 @@ function! <SID>Minisnip()
         let s:placeholder_texts = []
         let s:placeholder_text = ''
         let s:snippetContent = readfile(expand( s:snippetfile ))
-        call s:echodebug('cword', s:cword)
         if len(s:snippetContent) == 1
             let currentLine = s:GetCurrentLine()
             let currentCol = s:GetCurrentCol()
